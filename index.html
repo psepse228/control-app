@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Business Control</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --surface: #161616;
+    --surface2: #1e1e1e;
+    --border: rgba(255,255,255,0.06);
+    --border-hover: rgba(255,255,255,0.12);
+    --text: #f0f0f0;
+    --text-muted: #666;
+    --text-sub: #999;
+    --accent: #e8ff5a;
+    --accent-dim: rgba(232,255,90,0.08);
+    --red: #ff4d4d;
+    --red-dim: rgba(255,77,77,0.08);
+    --orange: #ff8c42;
+    --orange-dim: rgba(255,140,66,0.08);
+    --green: #4dff91;
+    --green-dim: rgba(77,255,145,0.08);
+    --blue: #4d9fff;
+    --blue-dim: rgba(77,159,255,0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* LOADER */
+  .loader {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 999;
+    transition: opacity 0.4s;
+  }
+  .loader.hidden { opacity: 0; pointer-events: none; }
+  .loader-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:0.2;transform:scale(0.8)} 50%{opacity:1;transform:scale(1)} }
+
+  /* HEADER */
+  .header {
+    padding: 20px 20px 0;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .header-logo {
+    font-family: 'Syne', sans-serif;
+    font-size: 16px; font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+  .header-logo span { color: var(--accent); }
+  .role-badge {
+    font-size: 11px; font-weight: 500;
+    padding: 4px 10px; border-radius: 20px;
+    border: 1px solid var(--border);
+    color: var(--text-sub);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  /* SCREENS */
+  .screen { display: none; padding: 20px; animation: fadeIn 0.25s ease; }
+  .screen.active { display: block; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+  /* NAV */
+  .nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+    z-index: 100;
+  }
+  .nav-item {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; gap: 4px;
+    padding: 6px 0;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 10px; font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    transition: color 0.15s;
+    border: none; background: none;
+  }
+  .nav-item.active { color: var(--accent); }
+  .nav-item svg { width: 20px; height: 20px; }
+
+  /* GREETING */
+  .greeting { padding: 28px 0 20px; }
+  .greeting-time {
+    font-size: 12px; color: var(--text-muted);
+    letter-spacing: 0.06em; text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .greeting-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 26px; font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+  }
+  .greeting-name span { color: var(--accent); }
+
+  /* STAT ROW */
+  .stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 24px; }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 12px;
+  }
+  .stat-val {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px; font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 2px;
+  }
+  .stat-lbl { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+  /* SECTION TITLE */
+  .section-title {
+    font-size: 11px; font-weight: 500;
+    color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.08em;
+    margin-bottom: 10px;
+  }
+
+  /* UPDATE CARDS */
+  .update-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .update-card:hover { border-color: var(--border-hover); }
+  .update-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .update-avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--surface2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 600;
+    font-family: 'Syne', sans-serif;
+    flex-shrink: 0;
+  }
+  .update-meta { flex: 1; }
+  .update-sender { font-size: 13px; font-weight: 500; }
+  .update-time { font-size: 11px; color: var(--text-muted); }
+  .update-project {
+    font-size: 10px; font-weight: 500;
+    padding: 2px 8px; border-radius: 20px;
+    border: 1px solid var(--border);
+    color: var(--text-sub);
+    text-transform: uppercase; letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  .update-text { font-size: 13px; color: var(--text-sub); line-height: 1.5; }
+  .update-tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10px; font-weight: 500;
+    padding: 3px 8px; border-radius: 20px;
+    margin-top: 8px;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .tag-urgent { background: var(--red-dim); color: var(--red); }
+  .tag-blocked { background: var(--orange-dim); color: var(--orange); }
+  .tag-supplier { background: var(--blue-dim); color: var(--blue); }
+  .tag-update { background: var(--green-dim); color: var(--green); }
+
+  /* TASK CARDS */
+  .task-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 8px;
+  }
+  .task-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+  .task-title { font-size: 14px; font-weight: 500; line-height: 1.3; }
+  .task-status {
+    font-size: 10px; font-weight: 500;
+    padding: 3px 8px; border-radius: 20px;
+    white-space: nowrap; flex-shrink: 0;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .status-new { background: var(--accent-dim); color: var(--accent); }
+  .status-progress { background: var(--blue-dim); color: var(--blue); }
+  .status-done { background: var(--green-dim); color: var(--green); }
+  .status-blocked { background: var(--red-dim); color: var(--red); }
+  .task-meta { font-size: 12px; color: var(--text-muted); }
+  .task-project { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+  /* PROJECTS */
+  .project-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .project-card:hover { border-color: var(--border-hover); }
+  .project-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 15px; font-weight: 600;
+    margin-bottom: 10px;
+  }
+  .project-stats { display: flex; gap: 16px; }
+  .project-stat { font-size: 12px; color: var(--text-muted); }
+  .project-stat strong { color: var(--text); font-weight: 500; }
+  .project-bar {
+    height: 3px; background: var(--surface2);
+    border-radius: 2px; margin-top: 12px; overflow: hidden;
+  }
+  .project-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.6s ease; }
+
+  /* ACTION BUTTONS */
+  .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 24px; }
+  .action-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 14px;
+    cursor: pointer;
+    display: flex; flex-direction: column; gap: 8px;
+    transition: border-color 0.15s, background 0.15s;
+    text-align: left;
+  }
+  .action-btn:hover { border-color: var(--border-hover); background: var(--surface2); }
+  .action-btn:active { transform: scale(0.98); }
+  .action-btn-icon { font-size: 20px; }
+  .action-btn-label { font-size: 13px; font-weight: 500; color: var(--text); }
+  .action-btn-sub { font-size: 11px; color: var(--text-muted); }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    z-index: 200;
+    display: none; align-items: flex-end;
+  }
+  .modal-overlay.open { display: flex; animation: fadeIn 0.2s ease; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px 20px 0 0;
+    padding: 20px;
+    width: 100%;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
+    animation: slideUp 0.25s ease;
+  }
+  @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+  .modal-handle {
+    width: 36px; height: 4px; border-radius: 2px;
+    background: var(--border-hover);
+    margin: 0 auto 20px;
+  }
+  .modal-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px; font-weight: 700;
+    margin-bottom: 16px;
+  }
+  .modal-input {
+    width: 100%; background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    resize: none; outline: none;
+    margin-bottom: 12px;
+    transition: border-color 0.15s;
+  }
+  .modal-input:focus { border-color: var(--accent); }
+  .modal-input::placeholder { color: var(--text-muted); }
+  .modal-submit {
+    width: 100%;
+    background: var(--accent);
+    color: #0f0f0f;
+    border: none;
+    border-radius: 10px;
+    padding: 14px;
+    font-family: 'Syne', sans-serif;
+    font-size: 14px; font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    letter-spacing: 0.02em;
+  }
+  .modal-submit:active { opacity: 0.8; }
+
+  /* EMPTY STATE */
+  .empty {
+    text-align: center; padding: 40px 20px;
+    color: var(--text-muted); font-size: 14px;
+  }
+  .empty-icon { font-size: 32px; margin-bottom: 12px; }
+
+  /* LOADING STATE */
+  .loading-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px; margin-bottom: 8px;
+    animation: shimmer 1.5s ease-in-out infinite;
+  }
+  @keyframes shimmer { 0%,100%{opacity:0.4} 50%{opacity:0.8} }
+  .loading-line {
+    height: 12px; border-radius: 6px;
+    background: var(--surface2);
+    margin-bottom: 8px;
+  }
+
+  .pb { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
+</style>
+</head>
+<body>
+
+<div class="loader" id="loader"><div class="loader-dot"></div></div>
+
+<div class="header">
+  <div class="header-logo">Control<span>.</span></div>
+  <div class="role-badge" id="role-badge">Загрузка...</div>
+</div>
+
+<!-- SCREEN: DASHBOARD -->
+<div class="screen active pb" id="screen-home">
+  <div class="greeting">
+    <div class="greeting-time" id="greeting-time"></div>
+    <div class="greeting-name" id="greeting-name">Добро<br>пожаловать <span>.</span></div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-card">
+      <div class="stat-val" id="stat-updates">—</div>
+      <div class="stat-lbl">Обновлений</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" style="color:var(--red)" id="stat-blockers">—</div>
+      <div class="stat-lbl">Блокировок</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" style="color:var(--green)" id="stat-done">—</div>
+      <div class="stat-lbl">Готово</div>
+    </div>
+  </div>
+
+  <div class="section-title">Последние обновления</div>
+  <div id="updates-list">
+    <div class="loading-card"><div class="loading-line" style="width:60%"></div><div class="loading-line" style="width:90%"></div></div>
+    <div class="loading-card"><div class="loading-line" style="width:45%"></div><div class="loading-line" style="width:80%"></div></div>
+  </div>
+</div>
+
+<!-- SCREEN: TASKS -->
+<div class="screen pb" id="screen-tasks">
+  <div style="padding: 20px 0 16px;">
+    <div class="section-title">Задачи</div>
+    <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:700;letter-spacing:-0.02em">Все проекты</div>
+  </div>
+  <div id="tasks-list">
+    <div class="loading-card"><div class="loading-line" style="width:70%"></div><div class="loading-line" style="width:50%"></div></div>
+  </div>
+</div>
+
+<!-- SCREEN: PROJECTS -->
+<div class="screen pb" id="screen-projects">
+  <div style="padding: 20px 0 16px;">
+    <div class="section-title">Проекты</div>
+    <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:700;letter-spacing:-0.02em">Обзор</div>
+  </div>
+  <div id="projects-list">
+    <div class="loading-card"><div class="loading-line" style="width:50%"></div><div class="loading-line" style="width:80%"></div></div>
+  </div>
+</div>
+
+<!-- SCREEN: SEND UPDATE -->
+<div class="screen pb" id="screen-send">
+  <div style="padding: 20px 0 16px;">
+    <div class="section-title">Отправить</div>
+    <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:700;letter-spacing:-0.02em">Обновление</div>
+  </div>
+
+  <div class="action-grid">
+    <button class="action-btn" onclick="openModal('update')">
+      <div class="action-btn-icon">📋</div>
+      <div class="action-btn-label">Обновление</div>
+      <div class="action-btn-sub">По проекту</div>
+    </button>
+    <button class="action-btn" onclick="openModal('urgent')">
+      <div class="action-btn-icon">🚨</div>
+      <div class="action-btn-label">Срочно</div>
+      <div class="action-btn-sub">Директору</div>
+    </button>
+    <button class="action-btn" onclick="openModal('blocked')">
+      <div class="action-btn-icon">🏗️</div>
+      <div class="action-btn-label">Блокировка</div>
+      <div class="action-btn-sub">Стою, жду</div>
+    </button>
+    <button class="action-btn" onclick="openModal('supplier')">
+      <div class="action-btn-icon">📦</div>
+      <div class="action-btn-label">Поставщик</div>
+      <div class="action-btn-sub">Проблема</div>
+    </button>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal" onclick="closeModalOutside(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-title">Обновление</div>
+    <input class="modal-input" id="modal-project" placeholder="Название проекта (напр. Объект 3)">
+    <textarea class="modal-input" id="modal-text" rows="4" placeholder="Опишите что происходит..."></textarea>
+    <button class="modal-submit" onclick="submitUpdate()">Отправить →</button>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav class="nav">
+  <button class="nav-item active" onclick="showScreen('home', this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    Главная
+  </button>
+  <button class="nav-item" onclick="showScreen('tasks', this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+    Задачи
+  </button>
+  <button class="nav-item" onclick="showScreen('projects', this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+    Проекты
+  </button>
+  <button class="nav-item" onclick="showScreen('send', this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+    Отправить
+  </button>
+</nav>
+
+<script>
+const AIRTABLE_TOKEN = 'patHiUtqOzZjEaWue.034701a325e494eff355e75353da0815e91676ab5af73d885e3c4d37d5bc5832';
+const BASE_ID = 'appRXyqsQOlLRZB5Y';
+const TABLE_ID = 'tbl2AZYG5CPjla8nS';
+const BOT_TOKEN = '8656211525:AAFnwCxHrYcguUW7az6ruxo4NtVhAxEPPCs';
+const BOSS_ID = '1631410032';
+
+let tg = window.Telegram?.WebApp;
+let userName = 'Пользователь';
+let userRole = 'employee';
+let currentModal = null;
+
+function init() {
+  if (tg) {
+    tg.ready();
+    tg.expand();
+    const user = tg.initDataUnsafe?.user;
+    if (user) {
+      userName = user.first_name + (user.last_name ? ' ' + user.last_name : '');
+      if (user.id?.toString() === BOSS_ID) {
+        userRole = 'director';
+        document.getElementById('role-badge').textContent = 'Директор';
+      } else {
+        document.getElementById('role-badge').textContent = 'Сотрудник';
+      }
+    }
+  } else {
+    userName = 'Демо';
+    document.getElementById('role-badge').textContent = 'Демо режим';
+  }
+
+  setGreeting();
+  updateName();
+  loadDashboard();
+
+  setTimeout(() => {
+    document.getElementById('loader').classList.add('hidden');
+  }, 800);
+}
+
+function setGreeting() {
+  const h = new Date().getHours();
+  let g = h < 12 ? 'Доброе утро' : h < 17 ? 'Добрый день' : 'Добрый вечер';
+  document.getElementById('greeting-time').textContent = g;
+}
+
+function updateName() {
+  const parts = userName.split(' ');
+  const first = parts[0] || 'Пользователь';
+  document.getElementById('greeting-name').innerHTML = `${first}<br><span style="color:var(--accent)">.</span>`;
+}
+
+async function airtableFetch(formula = '', maxRecords = 50) {
+  let url = `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}?maxRecords=${maxRecords}&sort[0][field]=Timestamp&sort[0][direction]=desc`;
+  if (formula) url += `&filterByFormula=${encodeURIComponent(formula)}`;
+  const r = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+  const d = await r.json();
+  return d.records || [];
+}
+
+async function loadDashboard() {
+  try {
+    const records = await airtableFetch('', 100);
+    const total = records.length;
+    const blockers = records.filter(r => {
+      const msg = (r.fields?.Message || '').toLowerCase();
+      return msg.includes('блокировк') || msg.includes('поставщик') || msg.includes('жд');
+    }).length;
+    const done = records.filter(r => r.fields?.Status === 'Seen').length;
+
+    document.getElementById('stat-updates').textContent = total;
+    document.getElementById('stat-blockers').textContent = blockers;
+    document.getElementById('stat-done').textContent = done;
+
+    renderUpdates(records.slice(0, 10));
+  } catch(e) {
+    document.getElementById('updates-list').innerHTML = '<div class="empty"><div class="empty-icon">⚡</div>Нет данных</div>';
+  }
+}
+
+function renderUpdates(records) {
+  const el = document.getElementById('updates-list');
+  if (!records.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📭</div>Обновлений пока нет</div>';
+    return;
+  }
+  el.innerHTML = records.map(r => {
+    const f = r.fields || {};
+    const sender = f.Sender || 'Неизвестно';
+    const project = f.Project || 'Общее';
+    const msg = f.Message || '';
+    const ts = f.Timestamp ? new Date(f.Timestamp).toLocaleTimeString('ru', {hour:'2-digit',minute:'2-digit'}) : '';
+    const initials = sender.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2);
+    const msgLow = msg.toLowerCase();
+    let tag = '';
+    if (msgLow.includes('срочно') || msgLow.includes('urgent')) tag = '<span class="update-tag tag-urgent">🚨 Срочно</span>';
+    else if (msgLow.includes('блокировк') || msgLow.includes('blocked')) tag = '<span class="update-tag tag-blocked">⚠️ Блокировка</span>';
+    else if (msgLow.includes('поставщик') || msgLow.includes('supplier')) tag = '<span class="update-tag tag-supplier">📦 Поставщик</span>';
+    else tag = '<span class="update-tag tag-update">✓ Обновление</span>';
+
+    return `<div class="update-card">
+      <div class="update-header">
+        <div class="update-avatar">${initials}</div>
+        <div class="update-meta">
+          <div class="update-sender">${sender}</div>
+          <div class="update-time">${ts}</div>
+        </div>
+        <div class="update-project">${project}</div>
+      </div>
+      <div class="update-text">${msg.slice(0, 120)}${msg.length > 120 ? '...' : ''}</div>
+      ${tag}
+    </div>`;
+  }).join('');
+}
+
+async function loadTasks() {
+  const el = document.getElementById('tasks-list');
+  try {
+    const records = await airtableFetch('', 50);
+    if (!records.length) {
+      el.innerHTML = '<div class="empty"><div class="empty-icon">✅</div>Задач нет</div>';
+      return;
+    }
+    el.innerHTML = records.map(r => {
+      const f = r.fields || {};
+      const sender = f.Sender || 'Неизвестно';
+      const project = f.Project || 'Общее';
+      const msg = f.Message || '';
+      const status = f.Status || 'New';
+      const ts = f.Timestamp ? new Date(f.Timestamp).toLocaleDateString('ru') : '';
+      const statusMap = { 'New': ['status-new','Новое'], 'Seen': ['status-done','Просмотрено'], 'Actioned': ['status-progress','В работе'] };
+      const [sc, sl] = statusMap[status] || ['status-new','Новое'];
+      return `<div class="task-card">
+        <div class="task-header">
+          <div class="task-title">${msg.slice(0,80)}${msg.length>80?'...':''}</div>
+          <div class="task-status ${sc}">${sl}</div>
+        </div>
+        <div class="task-meta">👤 ${sender} · ${ts}</div>
+        <div class="task-project">📁 ${project}</div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">⚡</div>Ошибка загрузки</div>';
+  }
+}
+
+async function loadProjects() {
+  const el = document.getElementById('projects-list');
+  try {
+    const records = await airtableFetch('', 100);
+    const projectMap = {};
+    records.forEach(r => {
+      const p = r.fields?.Project || 'Общее';
+      if (!projectMap[p]) projectMap[p] = { total: 0, done: 0 };
+      projectMap[p].total++;
+      if (r.fields?.Status === 'Seen') projectMap[p].done++;
+    });
+    const projects = Object.entries(projectMap);
+    if (!projects.length) {
+      el.innerHTML = '<div class="empty"><div class="empty-icon">🏗️</div>Проектов нет</div>';
+      return;
+    }
+    el.innerHTML = projects.map(([name, data]) => {
+      const pct = Math.round((data.done / data.total) * 100);
+      return `<div class="project-card">
+        <div class="project-name">${name}</div>
+        <div class="project-stats">
+          <div class="project-stat"><strong>${data.total}</strong> обновлений</div>
+          <div class="project-stat"><strong>${data.done}</strong> просмотрено</div>
+          <div class="project-stat"><strong>${pct}%</strong></div>
+        </div>
+        <div class="project-bar"><div class="project-bar-fill" style="width:${pct}%"></div></div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">⚡</div>Ошибка загрузки</div>';
+  }
+}
+
+function showScreen(name, btn) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  btn.classList.add('active');
+  if (name === 'tasks') loadTasks();
+  if (name === 'projects') loadProjects();
+}
+
+const modalTitles = {
+  update: 'Обновление по проекту',
+  urgent: '🚨 Срочное сообщение',
+  blocked: '🏗️ Блокировка работы',
+  supplier: '📦 Проблема с поставщиком'
+};
+const modalPlaceholders = {
+  update: 'Опишите что сделано или в процессе...',
+  urgent: 'Опишите срочную проблему — директор получит уведомление сразу...',
+  blocked: 'Что блокирует работу? Что нужно для продолжения?',
+  supplier: 'Какой поставщик, какие материалы, сколько ждёте?'
+};
+
+function openModal(type) {
+  currentModal = type;
+  document.getElementById('modal-title').textContent = modalTitles[type];
+  document.getElementById('modal-text').placeholder = modalPlaceholders[type];
+  document.getElementById('modal-project').value = '';
+  document.getElementById('modal-text').value = '';
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModalOutside(e) {
+  if (e.target === document.getElementById('modal')) closeModal();
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+}
+
+async function submitUpdate() {
+  const project = document.getElementById('modal-project').value.trim() || 'Общее';
+  const text = document.getElementById('modal-text').value.trim();
+  if (!text) { alert('Напишите сообщение'); return; }
+
+  const btn = document.querySelector('.modal-submit');
+  btn.textContent = 'Отправляю...';
+  btn.disabled = true;
+
+  try {
+    const prefixes = { update: '📋', urgent: '🚨 СРОЧНО:', blocked: '🏗️ БЛОКИРОВКА:', supplier: '📦 ПОСТАВЩИК:' };
+    const fullMsg = `${prefixes[currentModal]} ${text}`;
+
+    await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fields: {
+          Project: project,
+          Sender: userName,
+          Message: fullMsg,
+          'File Type': 'Text',
+          Status: 'New',
+          Timestamp: new Date().toISOString()
+        },
+        typecast: true
+      })
+    });
+
+    if (currentModal === 'urgent' || currentModal === 'blocked' || currentModal === 'supplier') {
+      const emoji = currentModal === 'urgent' ? '🚨 СРОЧНО' : currentModal === 'blocked' ? '⚠️ БЛОКИРОВКА' : '📦 ПОСТАВЩИК';
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: BOSS_ID,
+          text: `${emoji}\n\n👤 От: ${userName}\n📁 Проект: ${project}\n📝 ${text}`
+        })
+      });
+    }
+
+    closeModal();
+    btn.textContent = 'Отправить →';
+    btn.disabled = false;
+    loadDashboard();
+
+    if (tg) tg.showAlert('✅ Отправлено и записано в систему');
+    else alert('✅ Отправлено');
+  } catch(e) {
+    btn.textContent = 'Отправить →';
+    btn.disabled = false;
+    alert('Ошибка. Попробуйте ещё раз.');
+  }
+}
+
+init();
+</script>
+</body>
+</html>
